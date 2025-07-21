@@ -140,13 +140,18 @@ export async function POST(req: NextRequest) {
           break;
         }
 
+        // Calcul de la date de suspension (dans 30 jours)
+        const suspensionEffectiveAt = new Date();
+        suspensionEffectiveAt.setDate(suspensionEffectiveAt.getDate() + 30);
+
         updateWebhook(email, {
           status: "past_due",
-          suspensionEffectiveAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
+          suspensionEffectiveAt,
         });
         console.log(
           `❌ Paiement échoué pour ${email}, suspension prévue dans 30 jours.`
         );
+        //Logique de suppression à implémenter, en surveillant les dates de suspension en bdd.
       }
 
       break;

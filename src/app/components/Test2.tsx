@@ -5,9 +5,33 @@ import { useState } from "react";
 export const Test2 = () => {
   const [unitPrice, setUnitPrice] = useState<number>(50);
   const [quantity, setQuantity] = useState<number>(1);
+  const [email, setEmail] = useState<string>("soso@mail.test"); // A remplacer de façon dynamique par le mail du user
+  const yearly = process.env.NEXT_PUBLIC_YEARLY;
 
   const payYear = async () => {
+    if (!yearly) {
+      alert("La lookup key est manquante.");
+      return;
+    }
     console.log("paiement annuel déclenché");
+    console.log("Lookup Key:", yearly);
+
+    const res = await fetch("/api/create-subscription", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        lookupKey: yearly,
+        quantity,
+        email,
+      }),
+    });
+    const data = await res.json();
+    if (data?.url) {
+      localStorage.setItem("stripeUserEmail", email);
+      window.location.href = data.url;
+    } else {
+      alert("Erreur lors de la création de la session.");
+    }
   };
 
   return (

@@ -5,7 +5,7 @@ import { useState } from "react";
 export const Test1 = () => {
   const [unitPrice, setUnitPrice] = useState<number>(5);
   const [quantity, setQuantity] = useState<number>(1);
-  const [email, setEmail] = useState<string>("louka2@mail.test"); // A remplacer de façon dynamique par le mail du user
+  const [email, setEmail] = useState<string>("louka@mail.test"); // A remplacer de façon dynamique par le mail du user
   const monthly = process.env.NEXT_PUBLIC_MONTHLY;
 
   const payMonth = async () => {

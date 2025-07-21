@@ -9,7 +9,7 @@ export type WebhookEntry = {
   latestInvoiceId?: string;
   status: Stripe.Subscription.Status;
   updatedAt: number;
-  suspensionEffectiveAt?: number;
+  suspensionEffectiveAt?: Date;
 };
 
 export const webhookData: { [email: string]: WebhookEntry } = {};

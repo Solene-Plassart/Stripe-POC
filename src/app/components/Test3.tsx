@@ -8,6 +8,30 @@ export const Test3 = () => {
 
   const payMonthPartial = async () => {
     console.log("paiement mensuel au prorata déclenché");
+
+    try {
+      const response = await fetch("/api/add-quantity", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          addedQuantity: quantity,
+          key: "month",
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error("Erreur Stripe :", data.error);
+        alert(`Erreur : ${data.error}`);
+      } else {
+        console.log("Réponse Stripe :", data);
+        alert(`✅ Quantité mise à jour : ${data.message}`);
+      }
+    } catch (err) {
+      console.error("Erreur réseau :", err);
+      alert("Erreur de connexion à Stripe");
+    }
   };
 
   return (
