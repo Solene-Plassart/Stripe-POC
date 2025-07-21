@@ -9,6 +9,7 @@ export type WebhookEntry = {
   latestInvoiceId?: string;
   status: Stripe.Subscription.Status;
   updatedAt: number;
+  currentPeriodEnd: Date;
   suspensionEffectiveAt?: Date;
 };
 

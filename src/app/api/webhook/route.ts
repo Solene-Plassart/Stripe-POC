@@ -10,6 +10,22 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 console.log("Webhook key:", endpointSecret);
 
+const computeCurrentPeriodEnd = (
+  startTimestamp: number,
+  interval: "month" | "year"
+): Date => {
+  const startDate = new Date(startTimestamp * 1000);
+  const endDate = new Date(startDate);
+
+  if (interval === "month") {
+    endDate.setMonth(endDate.getMonth() + 1);
+  } else if (interval === "year") {
+    endDate.setFullYear(endDate.getFullYear() + 1);
+  }
+
+  return endDate;
+};
+
 export async function POST(req: NextRequest) {
   const body = await req.text(); //Retourne le body en texte brut car Stripe l'exige
   const sig = req.headers.get("stripe-signature")!;
@@ -158,9 +174,22 @@ export async function POST(req: NextRequest) {
 
     //SUBSCRIPTION  CREATED
     case "customer.subscription.created": {
+      let currentPeriodEnd: Date | undefined;
       const sub = event.data.object as Stripe.Subscription;
+
       const customerId =
         typeof sub.customer === "string" ? sub.customer : sub.customer?.id;
+      const planInterval = sub.items.data[0].plan.interval;
+
+      if (planInterval === "month" || planInterval === "year") {
+        currentPeriodEnd = computeCurrentPeriodEnd(
+          sub.start_date ?? sub.created,
+          planInterval
+        );
+        console.log("date:", currentPeriodEnd);
+      } else {
+        console.warn("⛔ Interval non supporté :", planInterval);
+      }
 
       const customer = await stripe.customers.retrieve(customerId);
       const email =
@@ -188,9 +217,10 @@ export async function POST(req: NextRequest) {
         paymentMethodId: sub.default_payment_method as string,
         latestInvoiceId: sub.latest_invoice as string,
         status: sub.status,
+        currentPeriodEnd,
       });
 
-      console.log(`✅ Subscription créée pour ${email}`);
+      console.log(`✅ Souscription effectuée pour ${email}`);
       break;
     }
 
