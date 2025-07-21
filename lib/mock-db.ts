@@ -1,6 +1,6 @@
 import type Stripe from "stripe";
 
-type WebhookEntry = {
+export type WebhookEntry = {
   customerId: string;
   subscriptionId: string;
   email?: string;
@@ -9,6 +9,7 @@ type WebhookEntry = {
   latestInvoiceId?: string;
   status: Stripe.Subscription.Status;
   updatedAt: number;
+  suspensionEffectiveAt?: number;
 };
 
 export const webhookData: { [email: string]: WebhookEntry } = {};
