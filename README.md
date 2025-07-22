@@ -11,6 +11,8 @@ Ce projet démontre l’intégration d’un système de facturation par abonneme
 - [⏰ Anticiper un renouvellement](#anticiper-un-renouvellement-automatique)
 - [✅ Résumé des fonctionnalités testées](#résumé-des-fonctionnalités-testées)
 
+https://docs.stripe.com/api
+
 ---
 
 ## 🏞️ Préparer l'environnement de test
