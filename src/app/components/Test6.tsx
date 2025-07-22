@@ -1,26 +1,23 @@
 /**
- * @file Test3.tsx
- * @component Test3
- * @description Simuler l’ajout de quantité sur un abonnement mensuel Stripe avec proration.
+ * @file Test6.tsx
+ * @component Test6
+ * @description Simuler la suppression d'une quantité (casques) d’un abonnement annuel Stripe.
  */
 "use client";
-
 import { useState } from "react";
 
-export const Test3 = () => {
-  const [unitPrice, setUnitPrice] = useState<number>(5);
+export const Test6 = () => {
   const [quantity, setQuantity] = useState<number>(1);
 
-  const payMonthPartial = async () => {
-    console.log("paiement mensuel au prorata déclenché");
-
+  const deleteHelmets = async () => {
+    console.log(`Supprimer ${quantity} casques de l'abonnement annuel`);
     try {
-      const response = await fetch("/api/add-quantity", {
+      const response = await fetch("/api/decrease-quantity", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          addedQuantity: quantity,
-          key: "month",
+          quantityToRemove: quantity,
+          key: "year",
         }),
       });
 
@@ -31,9 +28,7 @@ export const Test3 = () => {
         alert(`Erreur : ${data.error}`);
       } else {
         console.log("Réponse Stripe :", data);
-        alert(
-          `Quantité mise à jour : ${data.message}, nouvelle quantité : ${data.quantityNow}`
-        );
+        alert(`Quantité mise à jour : ${data.message}`);
       }
     } catch (err) {
       console.error("Erreur réseau :", err);
@@ -42,22 +37,11 @@ export const Test3 = () => {
   };
 
   return (
-    <div className="mt-6">
-      <h3>Test 3 : facturation mensuelle au prorata</h3>
+    <div className="mt-4">
+      <h3>Test 6 : abonnement annuel</h3>
       <div className="flex gap-4 text-sm">
         <label>
-          Prix unitaire (€)
-          <input
-            type="number"
-            value={unitPrice}
-            onChange={(e) => setUnitPrice(Number(e.target.value))}
-            className="w-full px-3 py-2 border rounded"
-            min={0}
-          />
-        </label>
-
-        <label>
-          Quantité à rajouter
+          Quantité à retirer
           <input
             type="number"
             value={quantity}
@@ -68,10 +52,10 @@ export const Test3 = () => {
         </label>
 
         <button
-          onClick={payMonthPartial}
+          onClick={deleteHelmets}
           className="cursor-pointer mt-2 bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
         >
-          Simuler le paiement
+          Retirer
         </button>
       </div>
     </div>

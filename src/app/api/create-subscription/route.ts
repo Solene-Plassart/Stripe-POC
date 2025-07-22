@@ -1,3 +1,6 @@
+/**
+ * @file app/api/create-subscription/route.ts
+ */
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
@@ -5,15 +8,26 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-06-30.basil",
 });
 
+/**
+ * Crée une session de paiement Stripe pour un abonnement.
+ *
+ * @param {NextRequest} req - Requête contenant "lookupKey", "quantity", et "email" dans le body JSON.
+ * @returns {Promise<NextResponse>} Une réponse JSON contenant l'URL Stripe ou une erreur.
+ *
+ * @throws {400 Bad Request} Si aucun tarif n'est trouvé avec la clé donnée.
+ * @throws {500 Internal Server Error} En cas d'erreur Stripe ou de traitement inattendu.
+ */
 export async function POST(req: NextRequest) {
   try {
-    const { lookupKey, quantity, email } = await req.json();
+    const body = await req.json();
+    const lookupKey: string = body.lookupKey;
+    const quantity: number = body.quantity;
+    const email: string = body.email;
     const prices = await stripe.prices.list({
       lookup_keys: [lookupKey],
       expand: ["data.product"],
     });
-    console.log("clé:", lookupKey);
-    console.log("tous les prix : ", prices.data);
+
     const price = prices.data[0];
     if (!price) {
       return NextResponse.json(

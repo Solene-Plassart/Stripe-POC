@@ -1,3 +1,8 @@
+/**
+ * @file Test4.tsx
+ * @component Test4
+ * @description Simuler l’ajout de quantité sur un abonnement annuel Stripe avec proration.
+ */
 "use client";
 
 import { useState } from "react";
@@ -26,7 +31,9 @@ export const Test4 = () => {
         alert(`Erreur : ${data.error}`);
       } else {
         console.log("Réponse Stripe :", data);
-        alert(`✅ Quantité mise à jour : ${data.message}`);
+        alert(
+          `Quantité mise à jour : ${data.message}, nouvelle quantité : ${data.quantityNow}`
+        );
       }
     } catch (err) {
       console.error("Erreur réseau :", err);

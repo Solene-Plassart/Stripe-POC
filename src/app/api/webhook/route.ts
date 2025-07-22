@@ -1,76 +1,57 @@
+/**
+ * @file app/api/webhook/route.ts
+ */
 import { NextRequest, NextResponse } from "next/server";
-import { webhookData } from "@/lib/mock-db";
-import { WebhookEntry } from "@/lib/mock-db";
 import Stripe from "stripe";
+
+import { webhookData } from "@/lib/mock-db";
+import { computeCurrentPeriodEnd } from "@/lib/utils";
+import { updateWebhook } from "@/lib/utils";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-06-30.basil",
 });
+const endpointSecret: string = process.env.STRIPE_WEBHOOK_SECRET!;
 
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
-console.log("Webhook key:", endpointSecret);
-
-const computeCurrentPeriodEnd = (
-  startTimestamp: number,
-  interval: "month" | "year"
-): Date => {
-  const startDate = new Date(startTimestamp * 1000);
-  const endDate = new Date(startDate);
-
-  if (interval === "month") {
-    endDate.setMonth(endDate.getMonth() + 1);
-  } else if (interval === "year") {
-    endDate.setFullYear(endDate.getFullYear() + 1);
-  }
-
-  return endDate;
-};
-
+/**
+ * Handler POST pour les webhooks Stripe: traite les événements envoyés par Stripe.
+ * Elle vérifie l’authenticité du webhook via la signature, puis agit selon le type d’événement.
+ * Les données sont stockées ou mises à jour dans un stockage temporaire simulé (`webhookData`).
+ *
+ * @param {NextRequest} req - La requête entrante contenant le corps brut du webhook Stripe.
+ * @returns {Promise<NextResponse>} Confirmation de réception (`{ received: true }`) ou erreur 400.
+ *
+ * @throws {400 Bad Request} Si la signature Stripe est invalide ou si le format du webhook est incorrect.
+ * @throws {400 Bad Request} En cas d’erreur inattendue dans la construction de l’événement Stripe.
+ */
 export async function POST(req: NextRequest) {
-  const body = await req.text(); //Retourne le body en texte brut car Stripe l'exige
-  const sig = req.headers.get("stripe-signature")!;
-
+  const body = await req.text();
+  const sig: string = req.headers.get("stripe-signature")!;
   let event: Stripe.Event;
+  let email: string = "";
 
   try {
     event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
   } catch (error) {
     if (error instanceof Error) {
       console.error("Erreur de vérification du webhook:", error.message);
+
       return new NextResponse(`Webhook Error: ${error.message}`, {
         status: 400,
       });
     }
     console.error("Erreur inconnue dans le webhook :", error);
+
     return new NextResponse("Unknown webhook error", { status: 400 });
   }
 
-  //Fonction d'updateWebhook
-  function updateWebhook(email: string, partial: Partial<WebhookEntry>) {
-    if (!email) {
-      console.warn("Email vide reçu dans updateWebhook.");
-      return;
-    }
-
-    const previous = webhookData[email] ?? {
-      email,
-    };
-
-    webhookData[email] = {
-      ...previous,
-      ...partial,
-      updatedAt: Date.now(),
-    };
-  }
-  //Gestion des différents événements
-  let email = "";
   switch (event.type) {
-    //CHECKOUT SESSION
+    //OUVERTURE DE SESSION STRIPE
     case "checkout.session.completed":
       {
         const session = event.data.object as Stripe.Checkout.Session;
         console.log(
-          "checkout.session.completed - ✅ Paiement réussi pour :",
+          "checkout.session.completed - ✅ Session de paiement créée pour :",
           session.customer_email
         );
 
@@ -78,24 +59,24 @@ export async function POST(req: NextRequest) {
         const rawSubscription = session.subscription;
         const rawInvoice = session.invoice;
 
-        const customerId =
+        const customerId: string | null =
           typeof rawCustomer === "string"
             ? rawCustomer
             : rawCustomer?.id ?? null;
 
-        const subscriptionId =
+        const subscriptionId: string | null =
           typeof rawSubscription === "string"
             ? rawSubscription
             : rawSubscription?.id ?? null;
 
-        const latestInvoiceId =
+        const latestInvoiceId: string | undefined =
           typeof rawInvoice === "string"
             ? rawInvoice
             : rawInvoice?.id ?? undefined;
 
-        email = session.customer_email ?? "";
+        const priceId: string = session.metadata?.price_id ?? "";
 
-        const priceId = session.metadata?.price_id ?? "";
+        email = session.customer_email ?? "";
 
         if (!customerId || !subscriptionId || !priceId) {
           console.warn(
@@ -113,11 +94,11 @@ export async function POST(req: NextRequest) {
           latestInvoiceId,
           status: "incomplete",
         });
-        console.log("webhook Data:", webhookData);
       }
+
       break;
 
-    //INVOICE PAID
+    //FACTURE PAYEE
     case "invoice.paid":
       {
         const invoice = event.data.object as Stripe.Invoice;
@@ -137,12 +118,15 @@ export async function POST(req: NextRequest) {
           suspensionEffectiveAt: undefined,
           status: "active",
         });
-        console.log(`💰 Paiement confirmé pour ${email}`, webhookData);
+        console.log(
+          `[STRIPE WEBHOOK] invoice.paid => 💰 Paiement confirmé pour ${email}`,
+          webhookData
+        );
       }
 
       break;
 
-    //INVOICE PAYMENT FAILED
+    //ECHEC DE PAIEMENT DE FACTURE
     case "invoice.payment_failed":
       {
         const failedInvoice = event.data.object as Stripe.Invoice;
@@ -156,7 +140,6 @@ export async function POST(req: NextRequest) {
           break;
         }
 
-        // Calcul de la date de suspension (dans 30 jours)
         const suspensionEffectiveAt = new Date();
         suspensionEffectiveAt.setDate(suspensionEffectiveAt.getDate() + 30);
 
@@ -165,34 +148,35 @@ export async function POST(req: NextRequest) {
           suspensionEffectiveAt,
         });
         console.log(
-          `❌ Paiement échoué pour ${email}, suspension prévue dans 30 jours.`
+          `[STRIPE WEBHOOK] invoice.payment.failed => ❌ Paiement échoué pour ${email}, suspension prévue dans 30 jours.`
         );
-        //Logique de suppression à implémenter, en surveillant les dates de suspension en bdd.
+        // TODO: Implémenter la logique de suppression automatique, en surveillant la date de suspension en BDD.
       }
 
       break;
 
-    //SUBSCRIPTION  CREATED
+    // ABONNEMENT EFFECTUE
     case "customer.subscription.created": {
-      let currentPeriodEnd: Date | undefined;
-      const sub = event.data.object as Stripe.Subscription;
+      const sub: Stripe.Subscription = event.data.object as Stripe.Subscription;
 
-      const customerId =
+      const customerId: string =
         typeof sub.customer === "string" ? sub.customer : sub.customer?.id;
-      const planInterval = sub.items.data[0].plan.interval;
+
+      const planInterval: string = sub.items.data[0].plan.interval;
+      let currentPeriodEnd: Date | undefined;
 
       if (planInterval === "month" || planInterval === "year") {
         currentPeriodEnd = computeCurrentPeriodEnd(
           sub.start_date ?? sub.created,
           planInterval
         );
-        console.log("date:", currentPeriodEnd);
       } else {
-        console.warn("⛔ Interval non supporté :", planInterval);
+        console.warn("⛔ Intervalle non supporté :", planInterval);
       }
 
       const customer = await stripe.customers.retrieve(customerId);
-      const email =
+
+      const email: string | null =
         typeof customer === "object" && "email" in customer
           ? customer.email
           : "";
@@ -202,7 +186,7 @@ export async function POST(req: NextRequest) {
         break;
       }
 
-      // Ajoute l'email dans les metadata de la souscription
+      // Ajouter l'email dans les metadata => lien avec le client dans mon mock (environnement test seulement)
       await stripe.subscriptions.update(sub.id, {
         metadata: {
           email: email,
@@ -220,42 +204,47 @@ export async function POST(req: NextRequest) {
         currentPeriodEnd,
       });
 
-      console.log(`✅ Souscription effectuée pour ${email}`);
+      console.log(
+        `[STRIPE WEBHOOK] customer.subscription.created => ✅ Souscription effectuée pour ${email}`
+      );
+      console.log("Date de fin de période :", currentPeriodEnd);
+
       break;
     }
 
-    //SUBSCRIPTION UPDATED
+    //ABONNEMENT MIS A JOUR
     case "customer.subscription.updated":
       {
         const sub = event.data.object as Stripe.Subscription;
+
+        //Récupération du mail en metadata (environnement test seulement)
         email = sub.metadata?.email ?? "";
+
         updateWebhook(email, {
           status: sub.status,
         });
 
-        console.log(`🔄 Abonnement mis à jour pour ${email}`);
+        console.log(
+          `[STRIPE WEBHOOK] customer.subscription.updated => 🔄 Abonnement mis à jour pour ${email}`
+        );
       }
       break;
 
-    // SUBSCRIPTION DELETED
+    // CLÔTURE D'ABONNEMENT
     case "customer.subscription.deleted": {
       const sub = event.data.object as Stripe.Subscription;
 
-      let email = sub.metadata?.email ?? "";
+      // Récupérer l'email via customerId (environnement test seulement)
+      const customerId =
+        typeof sub.customer === "string" ? sub.customer : sub.customer.id;
 
-      // Si le metadata est vide, on récupère l'email via customerId
-      if (!email && sub.customer) {
-        const customerId =
-          typeof sub.customer === "string" ? sub.customer : sub.customer.id;
-
-        const customer = await stripe.customers.retrieve(customerId);
-        if (
-          typeof customer === "object" &&
-          "email" in customer &&
-          customer.email
-        ) {
-          email = customer.email;
-        }
+      const customer = await stripe.customers.retrieve(customerId);
+      if (
+        typeof customer === "object" &&
+        "email" in customer &&
+        customer.email
+      ) {
+        email = customer.email;
       }
 
       if (!email) {
@@ -269,11 +258,13 @@ export async function POST(req: NextRequest) {
         status: "canceled",
       });
 
-      console.log(`❌ Abonnement annulé pour ${email}`);
+      console.log(
+        `[STRIPE WEBHOOK] customer.subscription.deleted => ❌ Abonnement annulé pour ${email}`
+      );
       break;
     }
 
-    // INVOICE UPCOMING
+    // FACTURE IMMINENTE
     case "invoice.upcoming": {
       const upcoming = event.data.object as Stripe.Invoice;
       email = upcoming.customer_email ?? "";
@@ -284,7 +275,7 @@ export async function POST(req: NextRequest) {
       }
 
       console.log(
-        `📅 Facture à venir pour ${email} - Montant : ${
+        `[STRIPE WEBHOOK] invoice.upcoming => 📅 Facture à venir pour ${email} - Montant : ${
           upcoming.amount_due / 100
         }€`
       );
@@ -296,7 +287,7 @@ export async function POST(req: NextRequest) {
     }
 
     default:
-      console.log(`ℹ️  Événement non géré : ${event.type}`);
+      console.log(`ℹ️ ${event.type}`);
   }
 
   return NextResponse.json({ received: true });

@@ -1,3 +1,8 @@
+/**
+ * @file Test1.tsx
+ * @component Test1
+ * @description Simuler un paiement mensuel Stripe avec quantité et prix paramétrables.
+ */
 "use client";
 
 import { useState } from "react";
@@ -5,16 +10,15 @@ import { useState } from "react";
 export const Test1 = () => {
   const [unitPrice, setUnitPrice] = useState<number>(5);
   const [quantity, setQuantity] = useState<number>(1);
-  const [email, setEmail] = useState<string>("louka@mail.test"); // A remplacer de façon dynamique par le mail du user
-  const monthly = process.env.NEXT_PUBLIC_MONTHLY;
+  const [email, setEmail] = useState<string>("louka3@mail.test"); // A remplacer dynamiquement par le mail du user
+  const monthly: string | undefined = process.env.NEXT_PUBLIC_MONTHLY;
 
   const payMonth = async () => {
     if (!monthly) {
       alert("La lookup key est manquante.");
       return;
     }
-    console.log("paiement mensuel déclenché");
-    console.log("Lookup Key:", monthly);
+    alert("Paiement mensuel déclenché");
 
     const res = await fetch("/api/create-subscription", {
       method: "POST",
@@ -27,7 +31,6 @@ export const Test1 = () => {
     });
     const data = await res.json();
     if (data?.url) {
-      localStorage.setItem("stripeUserEmail", email);
       window.location.href = data.url;
     } else {
       alert("Erreur lors de la création de la session.");
@@ -67,6 +70,7 @@ export const Test1 = () => {
           Simuler le paiement
         </button>
       </div>
+      <div></div>
     </div>
   );
 };

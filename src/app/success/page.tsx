@@ -1,12 +1,36 @@
+/**
+ * @component SuccessPage
+ * @description Affiche un message de validation du paiement avec un lien pour retourner à l'accueil.
+ */
 "use client";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+interface SessionData {
+  amount_total: number;
+  customer: {
+    email: string;
+    id: string;
+    currency: string;
+  };
+  metadata: {
+    price_id: string;
+  };
+  subscription: {
+    quantity: number;
+    status: string;
+    plan: {
+      created: number;
+      interval: "month" | "year";
+    };
+  };
+}
+
 export default function SuccessPage() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
-  const [sessionData, setSessionData] = useState(null);
+  const [sessionData, setSessionData] = useState<SessionData | null>(null);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -32,6 +56,32 @@ export default function SuccessPage() {
         >
           Retour à l&apos;accueil
         </Link>
+        {sessionData && (
+          <div className="text-start mt-8 flex flex-col gap-2">
+            <p>
+              <b>Somme réglée : </b>
+              {sessionData.amount_total / 100} {sessionData.customer.currency}{" "}
+              pour {sessionData.subscription.quantity} casques (price id :{" "}
+              {sessionData.metadata.price_id}),
+            </p>
+            <p>
+              <b>Client :</b> {sessionData.customer.email}, <b>identifiant :</b>{" "}
+              {sessionData.customer.id}
+            </p>
+            <p>
+              <b> Date de début de l&apos;abonnement :</b>{" "}
+              {new Date(
+                sessionData.subscription.plan.created * 1000
+              ).toLocaleDateString("fr-FR")}
+              , période de renouvellement :{" "}
+              {sessionData.subscription.plan.interval}
+            </p>
+            <p>
+              <b>Statut de l&apos;abonnement :</b>{" "}
+              {sessionData.subscription.status}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

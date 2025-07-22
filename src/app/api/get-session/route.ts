@@ -1,3 +1,6 @@
+/**
+ * @file app/api/get-session/route.ts
+ */
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
@@ -5,8 +8,17 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-06-30.basil",
 });
 
+/**
+ * Récupère les détails d'une session Stripe à partir d’un ID transmis en paramètre de l’URL.
+ *
+ * @param {NextRequest} req - Requête GET contenant le paramètre "session_id" dans l'URL.
+ * @returns {Promise<NextResponse>} Objet JSON contenant les informations de session ou une erreur.
+ *
+ * @throws {400 Bad Request} Si l’identifiant de session est manquant.
+ * @throws {500 Internal Server Error} En cas d’erreur Stripe ou d'erreur inattendue.
+ */
 export async function GET(req: NextRequest) {
-  const sessionId = req.nextUrl.searchParams.get("session_id");
+  const sessionId: string | null = req.nextUrl.searchParams.get("session_id");
 
   if (!sessionId) {
     return NextResponse.json({ error: "Session ID manquant" }, { status: 400 });

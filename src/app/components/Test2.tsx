@@ -1,3 +1,8 @@
+/**
+ * @file Test2.tsx
+ * @component Test2
+ * @description Simuler un paiement annuel Stripe avec une quantité personnalisable.
+ */
 "use client";
 
 import { useState } from "react";
@@ -6,7 +11,7 @@ export const Test2 = () => {
   const [unitPrice, setUnitPrice] = useState<number>(50);
   const [quantity, setQuantity] = useState<number>(1);
   const [email, setEmail] = useState<string>("soso@mail.test"); // A remplacer de façon dynamique par le mail du user
-  const yearly = process.env.NEXT_PUBLIC_YEARLY;
+  const yearly: string | undefined = process.env.NEXT_PUBLIC_YEARLY;
 
   const payYear = async () => {
     if (!yearly) {

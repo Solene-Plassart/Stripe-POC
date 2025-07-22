@@ -1,3 +1,7 @@
+/**
+ * @component CancelPage
+ * @description Affiche un message d'annulation de paiement avec un lien pour retourner à l'accueil.
+ */
 import Link from "next/link";
 
 export default function CancelPage() {
